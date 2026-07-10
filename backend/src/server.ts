@@ -6,10 +6,11 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 console.log('DATABASE_URL loaded:', !!process.env.DATABASE_URL);
 
-const [{ default: cors }, { default: express }, { default: dataRoutes }] = await Promise.all([
+const [{ default: cors }, { default: express }, { default: dataRoutes }, { default: verifyRoutes }] = await Promise.all([
   import('cors'),
   import('express'),
-  import('./routes/dataRoutes.js')
+  import('./routes/dataRoutes.js'),
+  import('./routes/verifyRoutes.js')
 ]);
 
 const app = express();
@@ -23,6 +24,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api', dataRoutes);
+app.use('/api', verifyRoutes);
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   console.error(error);
