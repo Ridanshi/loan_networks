@@ -10,7 +10,8 @@ const tabsByPage: Partial<Record<PageKey, Record<string, { column: string; opera
     approved: { column: 'status', operator: '=', value: 'approved' },
     acknowledged: { column: 'acknowledgement_status', operator: '=', value: 'acknowledged' },
     rejected: { column: 'status', operator: '=', value: 'rejected' },
-    paid: { column: 'primary_payout_status', operator: '=', value: 'paid' }
+    paid: { column: 'primary_payout_status', operator: '=', value: 'paid' },
+    needs_review: { column: 'status', operator: '=', value: 'needs_review' }
   },
   'dsa-invoices': {
     approved: { column: 'status', operator: '=', value: 'approved' },
