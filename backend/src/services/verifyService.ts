@@ -24,10 +24,12 @@ type ExpectedFieldsRow = Omit<ExpectedFields, 'disbursement_date' | 'sanction_am
   disbursement_amount: string;
 };
 
-// Amounts are stored in paise in loannetwork_production — divide by 100 here,
-// matching the same convention already used in verify_docs/db_lookup.py.
-// loan_type comes from loan_types.display_name via leads.loan_type_id —
-// NOT leads.sub_loan_type, which holds unrelated free-text test data today.
+// Amounts are stored in paise — divide by 100 here, matching the same
+// convention already used in verify_docs/db_lookup.py.
+// loan_type prefers loan_types.display_name via leads.loan_type_id, falling
+// back to applications.loan_type (a plain text column this staging DB has —
+// production doesn't) since loan_type_id is NULL on some seeded test leads.
+// LEFT JOIN (not JOIN) on loan_types so a missing FK doesn't drop the whole row.
 const EXPECTED_FIELDS_SQL = `
   SELECT
       l.name                                   AS customer_name,
@@ -37,13 +39,13 @@ const EXPECTED_FIELDS_SQL = `
       (d.disbursement_amount / 100.0)::numeric  AS disbursement_amount,
       d.disbursement_date,
       a.branch_name                             AS branch,
-      lt.display_name                           AS loan_type,
+      COALESCE(lt.display_name, a.loan_type)    AS loan_type,
       d.loan_account_number
   FROM disbursements d
-  JOIN applications     a  ON d.application_id     = a.id
-  JOIN leads            l  ON a.lead_id            = l.id
-  JOIN lending_partners lp ON a.lending_partner_id = lp.id
-  JOIN loan_types        lt ON l.loan_type_id       = lt.id
+  JOIN applications      a  ON d.application_id     = a.id
+  JOIN leads             l  ON a.lead_id            = l.id
+  JOIN lending_partners  lp ON a.lending_partner_id = lp.id
+  LEFT JOIN loan_types   lt ON l.loan_type_id       = lt.id
   WHERE d.id = $1
 `;
 
@@ -58,7 +60,8 @@ export async function buildExpectedFields(disbursementId: number): Promise<Expec
     ...row,
     sanction_amount: Number(row.sanction_amount),
     disbursement_amount: Number(row.disbursement_amount),
-    disbursement_date: new Date(row.disbursement_date).toISOString().slice(0, 10)
+    disbursement_date: new Date(row.disbursement_date).toISOString().slice(0, 10),
+    loan_type: row.loan_type ?? ''
   };
 }
 

@@ -11,6 +11,12 @@ const sslConfig = {
   rejectUnauthorized: false
 };
 
+// Local Postgres (e.g. a cloned staging DB on localhost) doesn't support SSL —
+// only enable it for remote hosts (RDS etc), which require it.
+function isLocalHost(hostname: string) {
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+}
+
 function buildConnectionString() {
   if (!databaseUrl) {
     return undefined;
@@ -27,6 +33,14 @@ function buildConnectionString() {
   return parsedUrl.toString();
 }
 
+function resolveSslOption(): false | typeof sslConfig {
+  if (!databaseUrl) {
+    return sslConfig;
+  }
+
+  return isLocalHost(new URL(databaseUrl).hostname) ? false : sslConfig;
+}
+
 function logConnectionConfig() {
   if (!databaseUrl) {
     console.log('PostgreSQL config:', {
@@ -38,11 +52,12 @@ function logConnectionConfig() {
   }
 
   const parsedUrl = new URL(databaseUrl);
+  const sslEnabled = !isLocalHost(parsedUrl.hostname);
 
   console.log('PostgreSQL config:', {
     host: parsedUrl.hostname,
     database: parsedUrl.pathname.replace(/^\//, ''),
-    sslEnabled: true,
+    sslEnabled,
     rejectUnauthorized: sslConfig.rejectUnauthorized
   });
 }
@@ -51,7 +66,7 @@ logConnectionConfig();
 
 export const pool = new Pool({
   connectionString: buildConnectionString(),
-  ssl: sslConfig
+  ssl: resolveSslOption()
 });
 
 export async function query<T extends QueryResultRow>(text: string, params: unknown[] = []) {
