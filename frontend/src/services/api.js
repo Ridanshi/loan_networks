@@ -24,6 +24,17 @@ export async function fetchBtJourneys(params) {
   return response.data;
 }
 
+export async function verifyDisbursementDocument(id, file) {
+  const formData = new FormData();
+  formData.append('document', file);
+
+  const response = await api.post(`/disbursements/${id}/verify-document`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+
+  return response.data;
+}
+
 export function getApiErrorMessage(error, fallback) {
   if (axios.isAxiosError(error)) {
     return error.response?.data?.message || error.message || fallback;
