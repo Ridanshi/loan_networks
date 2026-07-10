@@ -4,11 +4,12 @@ import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import SearchBox from '../components/SearchBox';
 import StatusTabs from '../components/StatusTabs';
+import VerifyDocumentButton from '../components/VerifyDocumentButton';
 import { fetchPageData, getApiErrorMessage } from '../services/api';
 
 const pageSize = 20;
 
-export default function DataPage({ pageKey, title, tabs = [] }) {
+export default function DataPage({ pageKey, title, tabs = [], enableDocumentVerification = false }) {
   const [data, setData] = useState(null);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState();
@@ -16,22 +17,28 @@ export default function DataPage({ pageKey, title, tabs = [] }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  function loadData() {
     setLoading(true);
     setError('');
 
-    const timeout = window.setTimeout(() => {
-      fetchPageData(pageKey, { page, limit: pageSize, search, tab: activeTab })
-        .then(setData)
-        .catch((err) => {
-          setData(null);
-          setError(getApiErrorMessage(err, 'Unable to load records'));
-        })
-        .finally(() => setLoading(false));
-    }, 250);
+    return fetchPageData(pageKey, { page, limit: pageSize, search, tab: activeTab })
+      .then(setData)
+      .catch((err) => {
+        setData(null);
+        setError(getApiErrorMessage(err, 'Unable to load records'));
+      })
+      .finally(() => setLoading(false));
+  }
 
+  useEffect(() => {
+    const timeout = window.setTimeout(loadData, 250);
     return () => window.clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, page, pageKey, search]);
+
+  const actions = enableDocumentVerification
+    ? (row) => <VerifyDocumentButton disbursementId={row.id} onVerified={loadData} />
+    : undefined;
 
   return (
     <section className="space-y-5">
@@ -71,7 +78,7 @@ export default function DataPage({ pageKey, title, tabs = [] }) {
         </div>
       ) : null}
 
-      <DataTable columns={data?.columns ?? []} rows={data?.rows ?? []} loading={loading} />
+      <DataTable columns={data?.columns ?? []} rows={data?.rows ?? []} loading={loading} actions={actions} />
 
       <Pagination page={page} pageSize={pageSize} total={data?.total ?? 0} onPageChange={setPage} />
     </section>
