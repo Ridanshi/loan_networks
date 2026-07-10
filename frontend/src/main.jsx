@@ -45,6 +45,7 @@ const router = createBrowserRouter([
           <DataPage
             pageKey="disbursements"
             title="Disbursements"
+            enableDocumentVerification
             tabs={[
               { key: 'pending_ops', label: 'Pending on Ops' },
               { key: 'pending_finance', label: 'Pending on Finance' },
@@ -52,7 +53,8 @@ const router = createBrowserRouter([
               { key: 'approved', label: 'Approved' },
               { key: 'acknowledged', label: 'Acknowledged' },
               { key: 'rejected', label: 'Rejected' },
-              { key: 'paid', label: 'Paid' }
+              { key: 'paid', label: 'Paid' },
+              { key: 'needs_review', label: 'Needs Review' }
             ]}
           />
         )
