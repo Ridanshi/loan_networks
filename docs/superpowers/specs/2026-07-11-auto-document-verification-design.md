@@ -15,14 +15,29 @@ values either typed by hand or looked up from a separate `verify_docs_staging`
 test database.
 
 This spec wires that verdict into the actual Loan Networks Admin Dashboard
-(`D:\Loan Networks`), against the real `loannetwork_production` database, with
-**no human confirmation step** — the verdict writes the case status directly.
+(`D:\Loan Networks`), with **no human confirmation step** — the verdict writes
+the case status directly.
+
+**Update (2026-07-11, post-implementation):** originally targeted the real
+`loannetwork_production` RDS database — that decision was reversed after
+implementation. The backend now points at a local Postgres clone,
+`verify_docs_staging` (same relational shape, seeded via `seed_db.py`,
+matches the `disbursements`/`applications`/`leads`/`lending_partners` table
+counts shown in the project's own screenshots — 8/53/53/53 rows). This
+required two follow-up fixes not in the original plan: `db.ts`'s SSL was
+hardcoded on for every connection (RDS requires it, local Postgres doesn't
+support it) — now conditional on hostname; and the `loan_type` join was an
+`INNER JOIN loan_types`, which silently dropped any row whose seeded
+`leads.loan_type_id` was `NULL` (real bug, not a staging-only quirk) — now a
+`LEFT JOIN` with `COALESCE(lt.display_name, a.loan_type)`, the latter being a
+plain text column this staging clone has that production doesn't. See
+`backend/.env` and `backend/src/config/db.ts` / `verifyService.ts`.
 
 ## Explicit accepted risk
 
 The VLM's accuracy has only been measured (`eval.py`) against 150 synthetic
 documents across 3 lender templates — not against real scanned/photographed
-documents. Writing verdicts directly to `loannetwork_production` with no human
+documents. Writing verdicts directly to the target database with no human
 check means a wrong extraction can move a real disbursement to `approved` or
 `changes_requested` with no one in the loop. This was raised and explicitly
 accepted by the project owner for this test phase. Real accuracy data from
@@ -119,8 +134,10 @@ this work):
 New file, e.g. `backend/src/routes/verifyRoutes.ts`, mounted alongside the
 existing generic `dataRoutes.ts` (which stays read-only and untouched).
 
-**Step A — build `expected` dict**, joining tables confirmed to exist in
-`loannetwork_production` with these exact shapes:
+**Step A — build `expected` dict**, joining tables confirmed to exist in the
+target database with these exact shapes. Current version (updated post-switch
+to `verify_docs_staging` — see `backend/src/services/verifyService.ts` for the
+live source of truth):
 
 ```sql
 SELECT
@@ -131,25 +148,32 @@ SELECT
     (d.disbursement_amount / 100.0)::numeric  AS disbursement_amount,
     d.disbursement_date,
     a.branch_name                             AS branch,
-    lt.display_name                           AS loan_type,
+    COALESCE(lt.display_name, a.loan_type)    AS loan_type,
     d.loan_account_number
 FROM disbursements d
-JOIN applications     a  ON d.application_id     = a.id
-JOIN leads            l  ON a.lead_id            = l.id
-JOIN lending_partners lp ON a.lending_partner_id = lp.id
-JOIN loan_types        lt ON l.loan_type_id       = lt.id
+JOIN applications      a  ON d.application_id     = a.id
+JOIN leads             l  ON a.lead_id            = l.id
+JOIN lending_partners  lp ON a.lending_partner_id = lp.id
+LEFT JOIN loan_types   lt ON l.loan_type_id       = lt.id
 WHERE d.id = $1
 ```
 
 Notes, all verified against the live schema (not assumed):
 - Amounts are stored in **paise**; divide by 100, matching the convention
   already used in `db_lookup.py` for the same comparison.
-- `loan_type` must come from `loan_types.display_name` via `leads.loan_type_id`
-  — **not** `leads.sub_loan_type`, which holds free-text junk in current data
-  (e.g. `"GGHHH"` on disbursement 592).
-- `applications` in `loannetwork_production` has no `loan_type` column at all,
-  unlike `verify_docs_staging` — this query cannot be copy-pasted from
-  `db_lookup.py`, it's a different join.
+- `loan_type` prefers `loan_types.display_name` via `leads.loan_type_id`,
+  falling back to `applications.loan_type` (a plain text column this staging
+  clone has that production doesn't) — **not** `leads.sub_loan_type`, which
+  holds free-text junk in current data (e.g. `"GGHHH"` on disbursement 592).
+- The `loan_types` join is **`LEFT JOIN`**, not `JOIN` — some seeded test
+  leads have `loan_type_id IS NULL` (confirmed: disbursement id 3, the
+  "Zainab Medicals" case), and an inner join silently dropped those rows
+  entirely, making `buildExpectedFields()` return `null` for a real,
+  existing disbursement. `loan_type` ending up `''` is harmless: the
+  comparator treats an empty expected field as "not checked," not a mismatch.
+- `applications` in `loannetwork_production` (the original target) has no
+  `loan_type` column at all — if this ever points back at production, drop
+  the `a.loan_type` fallback or the query won't compile there.
 
 **Step B — call Python service**: `POST ${VERIFY_SERVICE_URL}/verify`,
 multipart body: `expected` (JSON string) + `document` (file). New env var
