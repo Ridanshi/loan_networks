@@ -92,8 +92,20 @@ export async function callVerifyService(
   return (await response.json()) as VerifyResult;
 }
 
+// rejected_reason and notes are both varchar(255) — a multi-field mismatch
+// comment easily exceeds that, which fails the UPDATE outright.
+const COMMENT_COLUMN_MAX_LENGTH = 255;
+
+function truncateComments(comments: string): string {
+  if (comments.length <= COMMENT_COLUMN_MAX_LENGTH) {
+    return comments;
+  }
+
+  return `${comments.slice(0, COMMENT_COLUMN_MAX_LENGTH - 1)}…`;
+}
+
 export async function applyVerdict(disbursementId: number, result: VerifyResult): Promise<void> {
-  const comments = result.comments.join('\n');
+  const comments = truncateComments(result.comments.join('\n'));
 
   if (result.verdict === 'APPROVED') {
     await query('UPDATE disbursements SET status = $1, approved_datetime = now() WHERE id = $2', [
