@@ -35,6 +35,10 @@ export async function verifyDisbursementDocument(id, file) {
   return response.data;
 }
 
+export function getDisbursementDocumentUrl(id) {
+  return `${api.defaults.baseURL}/disbursements/${id}/document`;
+}
+
 export function getApiErrorMessage(error, fallback) {
   if (axios.isAxiosError(error)) {
     return error.response?.data?.message || error.message || fallback;

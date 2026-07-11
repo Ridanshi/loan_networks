@@ -107,6 +107,39 @@ function truncateComments(comments: string): string {
   return `${comments.slice(0, COMMENT_COLUMN_MAX_LENGTH - 1)}…`;
 }
 
+export async function saveDocument(
+  disbursementId: number,
+  fileBuffer: Buffer,
+  filename: string,
+  mimeType: string,
+  result: VerifyResult
+): Promise<void> {
+  await query(
+    `INSERT INTO disbursement_documents (disbursement_id, filename, mime_type, file_data, verdict, comments)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [disbursementId, filename, mimeType, fileBuffer, result.verdict, result.comments.join('\n')]
+  );
+}
+
+export type StoredDocument = {
+  filename: string;
+  mime_type: string;
+  file_data: Buffer;
+};
+
+export async function getLatestDocument(disbursementId: number): Promise<StoredDocument | null> {
+  const result = await query<StoredDocument>(
+    `SELECT filename, mime_type, file_data
+     FROM disbursement_documents
+     WHERE disbursement_id = $1
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [disbursementId]
+  );
+
+  return result.rows[0] ?? null;
+}
+
 export async function applyVerdict(disbursementId: number, result: VerifyResult): Promise<void> {
   const comments = truncateComments(result.comments.join('\n'));
 

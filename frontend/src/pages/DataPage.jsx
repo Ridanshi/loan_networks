@@ -5,7 +5,7 @@ import Pagination from '../components/Pagination';
 import SearchBox from '../components/SearchBox';
 import StatusTabs from '../components/StatusTabs';
 import VerifyDocumentButton from '../components/VerifyDocumentButton';
-import { fetchPageData, getApiErrorMessage } from '../services/api';
+import { fetchPageData, getApiErrorMessage, getDisbursementDocumentUrl } from '../services/api';
 
 const pageSize = 20;
 
@@ -37,7 +37,21 @@ export default function DataPage({ pageKey, title, tabs = [], enableDocumentVeri
   }, [activeTab, page, pageKey, search]);
 
   const actions = enableDocumentVerification
-    ? (row) => <VerifyDocumentButton disbursementId={row.id} onVerified={loadData} />
+    ? (row) => (
+        <div className="flex items-center gap-2">
+          <VerifyDocumentButton disbursementId={row.id} onVerified={loadData} />
+          {row.has_document ? (
+            <a
+              href={getDisbursementDocumentUrl(row.id)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              View Document
+            </a>
+          ) : null}
+        </div>
+      )
     : undefined;
 
   return (

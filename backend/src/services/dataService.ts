@@ -219,7 +219,8 @@ export async function getDisbursementsList(options: { search?: string; tab?: str
         d.acknowledgement_status,
         d.primary_payout_status,
         d.billing_company_id,
-        d.commission_amount
+        d.commission_amount,
+        EXISTS (SELECT 1 FROM disbursement_documents dd WHERE dd.disbursement_id = d.id) AS has_document
       ${DISBURSEMENTS_JOIN}
       ${whereClause}
       ORDER BY d.id DESC NULLS LAST
