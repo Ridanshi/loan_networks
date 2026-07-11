@@ -110,22 +110,23 @@ function truncateComments(comments: string): string {
 export async function applyVerdict(disbursementId: number, result: VerifyResult): Promise<void> {
   const comments = truncateComments(result.comments.join('\n'));
 
+  // Each verdict owns clearing the other verdicts' fields too — otherwise a
+  // stale rejected_reason/notes from a prior run lingers after a re-verify
+  // flips the status to something that field no longer applies to.
   if (result.verdict === 'APPROVED') {
-    await query('UPDATE disbursements SET status = $1, approved_datetime = now() WHERE id = $2', [
-      'approved',
-      disbursementId
-    ]);
+    await query(
+      'UPDATE disbursements SET status = $1, approved_datetime = now(), rejected_reason = NULL, notes = NULL WHERE id = $2',
+      ['approved', disbursementId]
+    );
   } else if (result.verdict === 'CHANGES_REQUESTED') {
-    await query('UPDATE disbursements SET status = $1, rejected_reason = $2 WHERE id = $3', [
-      'changes_requested',
-      comments,
-      disbursementId
-    ]);
+    await query(
+      'UPDATE disbursements SET status = $1, rejected_reason = $2, notes = NULL, approved_datetime = NULL WHERE id = $3',
+      ['changes_requested', comments, disbursementId]
+    );
   } else {
-    await query('UPDATE disbursements SET status = $1, notes = $2 WHERE id = $3', [
-      'needs_review',
-      comments,
-      disbursementId
-    ]);
+    await query(
+      'UPDATE disbursements SET status = $1, notes = $2, rejected_reason = NULL, approved_datetime = NULL WHERE id = $3',
+      ['needs_review', comments, disbursementId]
+    );
   }
 }
