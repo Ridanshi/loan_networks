@@ -81,6 +81,9 @@ export async function callVerifyService(
 
   const response = await fetch(`${verifyServiceUrl}/verify`, {
     method: 'POST',
+    // Free-tier ngrok shows an HTML browser-warning interstitial to any
+    // request lacking this header, instead of proxying to the real service.
+    headers: { 'ngrok-skip-browser-warning': 'true' },
     body: formData
   });
 
