@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import { getDashboardSummary, getPageData } from '../services/dataService.js';
+import { getDashboardSummary, getDisbursementsList, getPageData } from '../services/dataService.js';
 import { type PageKey, tableConfigs } from '../services/tableConfig.js';
 
 export async function dashboardController(_req: Request, res: Response, next: NextFunction) {
@@ -22,13 +22,15 @@ export async function listController(req: Request, res: Response, next: NextFunc
 
     const page = Math.max(Number(req.query.page || 1), 1);
     const pageSize = Math.min(Math.max(Number(req.query.limit || req.query.pageSize || 20), 1), 100);
-
-    const data = await getPageData(pageKey, {
+    const listOptions = {
       search: String(req.query.search || ''),
       tab: req.query.tab ? String(req.query.tab) : req.query.status ? String(req.query.status) : undefined,
       page,
       pageSize
-    });
+    };
+
+    const data =
+      pageKey === 'disbursements' ? await getDisbursementsList(listOptions) : await getPageData(pageKey, listOptions);
 
     res.json(data);
   } catch (error) {

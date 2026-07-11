@@ -123,6 +123,120 @@ export async function getDashboardSummary() {
   return summary;
 }
 
+// Disbursements alone gets a joined listing — customer_name/bank_name/branch/
+// application_id/loan_type/sanction_amount live on applications/leads/
+// lending_partners/loan_types, not on disbursements itself. Same join shape
+// as verifyService.ts's buildExpectedFields, applied here to the whole list
+// instead of a single row. All tab-filter columns below are qualified with
+// "d." since disbursements and applications both have a "status" column.
+const DISBURSEMENTS_TAB_WHERE: Record<string, { clause: string; value: string | string[] }> = {
+  pending_ops: { clause: 'd.pending_approval_role = $', value: 'operations' },
+  pending_finance: { clause: 'd.pending_approval_role = ANY($)', value: ['finance', 'finance_manager'] },
+  changes_requested: { clause: 'd.status = $', value: 'changes_requested' },
+  approved: { clause: 'd.status = $', value: 'approved' },
+  acknowledged: { clause: 'd.acknowledgement_status = $', value: 'acknowledged' },
+  rejected: { clause: 'd.status = $', value: 'rejected' },
+  paid: { clause: 'd.primary_payout_status = $', value: 'paid' },
+  needs_review: { clause: 'd.status = $', value: 'needs_review' }
+};
+
+const DISBURSEMENTS_JOIN = `
+  FROM disbursements d
+  JOIN applications      a  ON d.application_id     = a.id
+  JOIN leads             l  ON a.lead_id            = l.id
+  JOIN lending_partners  lp ON a.lending_partner_id = lp.id
+  LEFT JOIN loan_types   lt ON l.loan_type_id        = lt.id
+`;
+
+const DISBURSEMENTS_COLUMNS = [
+  'id',
+  'customer_name',
+  'bank_name',
+  'application_id',
+  'branch',
+  'loan_type',
+  'loan_account_number',
+  'sanction_amount',
+  'disbursement_amount',
+  'disbursement_date',
+  'status',
+  'disbursement_type',
+  'pending_approval_role',
+  'acknowledgement_status',
+  'primary_payout_status',
+  'billing_company_id',
+  'commission_amount'
+];
+
+export async function getDisbursementsList(options: { search?: string; tab?: string; page: number; pageSize: number }) {
+  const params: unknown[] = [];
+  const whereParts: string[] = [];
+
+  const tabConfig = options.tab ? DISBURSEMENTS_TAB_WHERE[options.tab] : undefined;
+  if (tabConfig) {
+    params.push(tabConfig.value);
+    whereParts.push(tabConfig.clause.replace('$', `$${params.length}`));
+  }
+
+  const trimmedSearch = options.search?.trim();
+  if (trimmedSearch) {
+    params.push(`%${trimmedSearch}%`);
+    const paramRef = `$${params.length}`;
+    whereParts.push(
+      `(d.loan_account_number ILIKE ${paramRef} OR l.name ILIKE ${paramRef} OR lp.name ILIKE ${paramRef} OR a.bank_application_id ILIKE ${paramRef})`
+    );
+  }
+
+  const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+  const countResult = await query<{ count: number }>(`SELECT COUNT(*)::int AS count ${DISBURSEMENTS_JOIN} ${whereClause}`, params);
+
+  params.push(options.pageSize);
+  const limitRef = `$${params.length}`;
+  params.push((options.page - 1) * options.pageSize);
+  const offsetRef = `$${params.length}`;
+
+  const dataResult = await query<Record<string, unknown>>(
+    `
+      SELECT
+        d.id,
+        l.name                                   AS customer_name,
+        lp.name                                   AS bank_name,
+        a.bank_application_id                     AS application_id,
+        a.branch_name                             AS branch,
+        COALESCE(lt.display_name, a.loan_type)    AS loan_type,
+        d.loan_account_number,
+        (a.sanctioned_amount   / 100.0)::numeric  AS sanction_amount,
+        (d.disbursement_amount / 100.0)::numeric  AS disbursement_amount,
+        d.disbursement_date,
+        d.status,
+        d.disbursement_type,
+        d.pending_approval_role,
+        d.acknowledgement_status,
+        d.primary_payout_status,
+        d.billing_company_id,
+        d.commission_amount
+      ${DISBURSEMENTS_JOIN}
+      ${whereClause}
+      ORDER BY d.id DESC NULLS LAST
+      LIMIT ${limitRef}
+      OFFSET ${offsetRef}
+    `,
+    params
+  );
+
+  return {
+    label: 'Disbursements',
+    table: 'disbursements',
+    columns: DISBURSEMENTS_COLUMNS,
+    missingColumns: [],
+    rows: dataResult.rows,
+    total: countResult.rows[0]?.count ?? 0,
+    page: options.page,
+    pageSize: options.pageSize
+  };
+}
+
 export async function getPageData(page: PageKey, options: { search?: string; tab?: string; page: number; pageSize: number }) {
   const { config, selectedColumns, missingColumns, searchColumns, availableColumnSet } = await resolveConfig(page);
   const params: unknown[] = [];
