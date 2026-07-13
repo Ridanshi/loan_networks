@@ -1,5 +1,6 @@
 import { AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import AddDisbursementModal from '../components/AddDisbursementModal';
 import DataTable from '../components/DataTable';
 import Pagination from '../components/Pagination';
 import SearchBox from '../components/SearchBox';
@@ -9,13 +10,14 @@ import { fetchPageData, getApiErrorMessage, getDisbursementDocumentUrl } from '.
 
 const pageSize = 20;
 
-export default function DataPage({ pageKey, title, tabs = [], enableDocumentVerification = false }) {
+export default function DataPage({ pageKey, title, tabs = [], enableDisbursementActions = false }) {
   const [data, setData] = useState(null);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState();
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   function loadData() {
     setLoading(true);
@@ -36,7 +38,7 @@ export default function DataPage({ pageKey, title, tabs = [], enableDocumentVeri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, page, pageKey, search]);
 
-  const actions = enableDocumentVerification
+  const actions = enableDisbursementActions
     ? (row) => (
         <div className="flex items-center gap-2">
           <VerifyDocumentButton disbursementId={row.id} onVerified={loadData} />
@@ -61,14 +63,36 @@ export default function DataPage({ pageKey, title, tabs = [], enableDocumentVeri
           <h2 className="text-2xl font-semibold text-slate-950">{title}</h2>
           <p className="mt-1 text-sm text-slate-500">{data ? `Table: ${data.table}` : 'PostgreSQL records'}</p>
         </div>
-        <SearchBox
-          value={search}
-          onChange={(value) => {
-            setSearch(value);
+        <div className="flex items-center gap-3">
+          {enableDisbursementActions ? (
+            <button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="h-10 whitespace-nowrap rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              + Add Disbursement
+            </button>
+          ) : null}
+          <SearchBox
+            value={search}
+            onChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+          />
+        </div>
+      </div>
+
+      {showAddModal ? (
+        <AddDisbursementModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={() => {
+            setActiveTab('pending_ops');
             setPage(1);
+            loadData();
           }}
         />
-      </div>
+      ) : null}
 
       <StatusTabs
         tabs={tabs}

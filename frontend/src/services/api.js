@@ -39,6 +39,11 @@ export function getDisbursementDocumentUrl(id) {
   return `${api.defaults.baseURL}/disbursements/${id}/document`;
 }
 
+export async function createDisbursement(payload) {
+  const response = await api.post('/disbursements', payload);
+  return response.data;
+}
+
 export function getApiErrorMessage(error, fallback) {
   if (axios.isAxiosError(error)) {
     return error.response?.data?.message || error.message || fallback;

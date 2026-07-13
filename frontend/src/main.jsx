@@ -45,7 +45,7 @@ const router = createBrowserRouter([
           <DataPage
             pageKey="disbursements"
             title="Disbursements"
-            enableDocumentVerification
+            enableDisbursementActions
             tabs={[
               { key: 'pending_ops', label: 'Pending on Ops' },
               { key: 'pending_finance', label: 'Pending on Finance' },
