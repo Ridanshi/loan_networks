@@ -1,5 +1,23 @@
 import { query } from '../config/db.js';
 
+// The Python service is async: /verify enqueues + returns a job_id fast,
+// /result/{job_id} reports status. We poll here instead of holding one long
+// HTTP request open — free-tier tunnels (ngrok ~60s, Cloudflare ~100s) cap
+// single requests well below the 2-14 min the VLM pipeline can take, so a
+// single-shot call would fail on any tunnel that isn't paid. Every request
+// this file makes now finishes in well under a second.
+const POLL_INTERVAL_MS = 3_000;
+const MAX_POLL_DURATION_MS = 30 * 60 * 1000;
+const TUNNEL_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
+
+type SubmitResponse = { job_id: string; status: 'running' };
+type PollResponse =
+  | { job_id: string; status: 'running' }
+  | { job_id: string; status: 'done'; result: VerifyResult }
+  | { job_id: string; status: 'error'; error: string };
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export type ExpectedFields = {
   customer_name: string;
   bank_name: string;
@@ -77,22 +95,46 @@ export async function callVerifyService(
 
   const formData = new FormData();
   formData.append('expected', JSON.stringify(expected));
-  formData.append('document', new Blob([fileBuffer]), filename);
+  formData.append('document', new Blob([new Uint8Array(fileBuffer)]), filename);
 
-  const response = await fetch(`${verifyServiceUrl}/verify`, {
+  const submitResponse = await fetch(`${verifyServiceUrl}/verify`, {
     method: 'POST',
-    // Free-tier ngrok shows an HTML browser-warning interstitial to any
-    // request lacking this header, instead of proxying to the real service.
-    headers: { 'ngrok-skip-browser-warning': 'true' },
+    headers: TUNNEL_HEADERS,
     body: formData
   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`verify_docs service returned ${response.status}: ${text}`);
+  if (!submitResponse.ok) {
+    const text = await submitResponse.text();
+    throw new Error(`verify_docs submit returned ${submitResponse.status}: ${text}`);
   }
 
-  return (await response.json()) as VerifyResult;
+  const { job_id } = (await submitResponse.json()) as SubmitResponse;
+
+  const deadline = Date.now() + MAX_POLL_DURATION_MS;
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+
+    const pollResponse = await fetch(`${verifyServiceUrl}/result/${job_id}`, {
+      headers: TUNNEL_HEADERS
+    });
+
+    if (!pollResponse.ok) {
+      const text = await pollResponse.text();
+      throw new Error(`verify_docs poll returned ${pollResponse.status}: ${text}`);
+    }
+
+    const body = (await pollResponse.json()) as PollResponse;
+
+    if (body.status === 'done') {
+      return body.result;
+    }
+    if (body.status === 'error') {
+      throw new Error(`verify_docs pipeline error: ${body.error}`);
+    }
+    // status === 'running' → loop and poll again
+  }
+
+  throw new Error(`verify_docs job ${job_id} did not complete within ${MAX_POLL_DURATION_MS / 60_000} minutes`);
 }
 
 // rejected_reason and notes are both varchar(255) — a multi-field mismatch

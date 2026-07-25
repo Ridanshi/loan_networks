@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: loan-networks-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: VERIFY_SERVICE_URL
+        sync: false

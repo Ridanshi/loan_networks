@@ -534,12 +534,19 @@ export async function applyVerdict(disbursementId: number, result: VerifyResult)
 
 - [ ] **Step 3: Manual verify `buildExpectedFields` against the real DB**
 
+`tsx` has no `-e` eval flag (that's a plain-`node`-only flag) — write a one-off script instead, run it, then delete it:
+
 ```bash
 cd "D:/Loan Networks/backend"
-npx tsx -e "
-import { buildExpectedFields } from './src/services/verifyService.js';
-buildExpectedFields(592).then(r => console.log(JSON.stringify(r, null, 2)));
-"
+cat > src/scripts/verifyExpectedFieldsCheck.ts <<'EOF'
+import { buildExpectedFields } from '../services/verifyService.js';
+
+buildExpectedFields(592)
+  .then((r) => { console.log(JSON.stringify(r, null, 2)); process.exit(0); })
+  .catch((e) => { console.error('ERR', e.message); process.exit(1); });
+EOF
+npx tsx src/scripts/verifyExpectedFieldsCheck.ts
+rm src/scripts/verifyExpectedFieldsCheck.ts
 ```
 
 Expected output shape (real values for disbursement 592, confirmed during design):
@@ -727,16 +734,15 @@ export async function verifyDisbursementDocument(id, file) {
 
 - [ ] **Step 2: Manual verify**
 
+`api.js` uses `import.meta.env`, which only resolves under Vite — plain `node` can't import this file directly. Use a syntax check instead (full functional verification happens in Task 13's browser test):
+
 ```bash
 cd "D:/Loan Networks/frontend"
-node -e "
-import('./src/services/api.js').then(async (m) => {
-  console.log(typeof m.verifyDisbursementDocument);
-});
-"
+node --check src/services/api.js
+grep -c "export async function verifyDisbursementDocument" src/services/api.js
 ```
 
-Expected: prints `function`.
+Expected: `node --check` exits with no output (valid syntax), `grep -c` prints `1`.
 
 - [ ] **Step 3: Commit**
 
