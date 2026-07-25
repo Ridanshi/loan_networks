@@ -4,7 +4,6 @@ import { createBrowserRouter, Navigate, RouterProvider } from 'react-router-dom'
 import App from './App';
 import AllDsaPage from './pages/AllDsaPage';
 import BtJourneysPage from './pages/BtJourneysPage';
-import ComingSoon from './pages/ComingSoon';
 import Dashboard from './pages/Dashboard';
 import DataPage from './pages/DataPage';
 import './styles.css';
@@ -16,22 +15,8 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'all-dsa', element: <AllDsaPage /> },
-      { path: 'add-dsa', element: <ComingSoon title="Add DSA" description="DSA creation is not enabled because no verified writable workflow has been mapped." /> },
       { path: 'bt-journeys', element: <BtJourneysPage /> },
-      {
-        path: 'bt-journeys/create',
-        element: (
-          <ComingSoon
-            title="Create Journey"
-            description="BT Journey tables are readable, but this demo has no verified writable create workflow or mutation contract."
-          />
-        )
-      },
       { path: 'projects', element: <DataPage pageKey="projects" title="All Projects" /> },
-      {
-        path: 'add-project',
-        element: <ComingSoon title="Add Project" description="Project creation is not enabled because this demo is read-only against the live schema." />
-      },
       { path: 'builders', element: <DataPage pageKey="builders" title="Manage Builders" /> },
       { path: 'bankers', element: <DataPage pageKey="bankers" title="Manage Bankers" /> },
       { path: 'lending-partners', element: <DataPage pageKey="lending-partners" title="Lending Partners" /> },

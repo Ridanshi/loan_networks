@@ -4,13 +4,11 @@ import {
   ChevronDown,
   CircleDollarSign,
   FileCheck2,
-  FilePlus2,
   GitBranch,
   Home,
   Landmark,
   LayoutDashboard,
   Link2,
-  Plus,
   QrCode,
   Receipt,
   ScrollText,
@@ -23,23 +21,20 @@ import { NavLink, useLocation } from 'react-router-dom';
 
 const primaryLinks = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/all-dsa', label: 'All DSA', icon: Users },
-  { to: '/add-dsa', label: 'Add DSA', icon: Plus }
+  { to: '/all-dsa', label: 'All DSA', icon: Users }
 ];
 
 const groupedLinks = [
   {
     label: 'BT Journey',
     items: [
-      { to: '/bt-journeys', label: 'All Journeys', icon: GitBranch },
-      { to: '/bt-journeys/create', label: 'Create Journey', icon: FilePlus2 }
+      { to: '/bt-journeys', label: 'All Journeys', icon: GitBranch }
     ]
   },
   {
     label: 'Project Management',
     items: [
       { to: '/projects', label: 'All Projects', icon: Home },
-      { to: '/add-project', label: 'Add Project', icon: FilePlus2 },
       { to: '/builders', label: 'Manage Builders', icon: Building2 },
       { to: '/bankers', label: 'Manage Bankers', icon: Landmark },
       { to: '/lending-partners', label: 'Lending Partners', icon: Users },
