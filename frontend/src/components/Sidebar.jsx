@@ -24,7 +24,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 const primaryLinks = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/all-dsa', label: 'All DSA', icon: Users },
-  { to: '/add-dsa', label: 'Add DSA', icon: Plus, disabled: true }
+  { to: '/add-dsa', label: 'Add DSA', icon: Plus }
 ];
 
 const groupedLinks = [
@@ -32,14 +32,14 @@ const groupedLinks = [
     label: 'BT Journey',
     items: [
       { to: '/bt-journeys', label: 'All Journeys', icon: GitBranch },
-      { to: '/bt-journeys/create', label: 'Create Journey', icon: FilePlus2, disabled: true }
+      { to: '/bt-journeys/create', label: 'Create Journey', icon: FilePlus2 }
     ]
   },
   {
     label: 'Project Management',
     items: [
       { to: '/projects', label: 'All Projects', icon: Home },
-      { to: '/add-project', label: 'Add Project', icon: FilePlus2, disabled: true },
+      { to: '/add-project', label: 'Add Project', icon: FilePlus2 },
       { to: '/builders', label: 'Manage Builders', icon: Building2 },
       { to: '/bankers', label: 'Manage Bankers', icon: Landmark },
       { to: '/lending-partners', label: 'Lending Partners', icon: Users },
