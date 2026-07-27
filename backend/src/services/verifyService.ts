@@ -8,7 +8,6 @@ import { query } from '../config/db.js';
 // this file makes now finishes in well under a second.
 const POLL_INTERVAL_MS = 3_000;
 const MAX_POLL_DURATION_MS = 30 * 60 * 1000;
-const TUNNEL_HEADERS = { 'ngrok-skip-browser-warning': 'true' };
 
 type SubmitResponse = { job_id: string; status: 'running' };
 type PollResponse =
@@ -99,7 +98,6 @@ export async function callVerifyService(
 
   const submitResponse = await fetch(`${verifyServiceUrl}/verify`, {
     method: 'POST',
-    headers: TUNNEL_HEADERS,
     body: formData
   });
 
@@ -114,9 +112,7 @@ export async function callVerifyService(
   while (Date.now() < deadline) {
     await sleep(POLL_INTERVAL_MS);
 
-    const pollResponse = await fetch(`${verifyServiceUrl}/result/${job_id}`, {
-      headers: TUNNEL_HEADERS
-    });
+    const pollResponse = await fetch(`${verifyServiceUrl}/result/${job_id}`);
 
     if (!pollResponse.ok) {
       const text = await pollResponse.text();
