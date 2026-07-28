@@ -40,9 +40,3 @@ Backend: http://localhost:4000
 Frontend: https://loan-networks.vercel.app
 
 Backend: https://loan-networks.onrender.com
-
-## Notes
-
-- No mock schemas or seed data are included.
-- API queries use the configured PostgreSQL database.
-- If a requested display column is absent from the actual schema, the API omits that column instead of fabricating it.
