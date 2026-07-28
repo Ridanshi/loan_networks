@@ -35,6 +35,12 @@ Frontend: http://localhost:5173
 
 Backend: http://localhost:4000
 
+## Live
+
+Frontend: https://loan-networks.vercel.app
+
+Backend: https://loan-networks.onrender.com
+
 ## Notes
 
 - No mock schemas or seed data are included.
